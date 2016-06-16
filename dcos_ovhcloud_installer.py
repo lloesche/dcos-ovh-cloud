@@ -258,6 +258,7 @@ class OVHInstances:
                     else:
                         self.log.info(
                             'Instance {} is active with IP {} but ssh is not yet available'.format(instance['id'], ip))
+                        wait = True
                 elif r['status'] == 'ERROR':
                     self.log.error(
                         'Instance {} entered an ERROR state - dumping response object\n{}'.format(instance['id'], r))
