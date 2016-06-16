@@ -23,10 +23,11 @@ def main(argv):
     p.add_argument('--url', help='URL to dcos_generate_config.sh',
                    default='https://downloads.dcos.io/dcos/EarlyAccess/dcos_generate_config.sh')
     p.add_argument('--project', help='OVH Cloud Project Name', required=True)
-    p.add_argument('--flavor', help='OVH Cloud Machine Type (e.g. hg-15)', default='hg-15')
-    p.add_argument('--image', help='OVH Cloud OS Image (e.g. Centos 7)', default='Centos 7')
+    p.add_argument('--flavor', help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
+    p.add_argument('--image', help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
     p.add_argument('--ssh-key', help='OVH Cloud SSH Key Name', required=True)
-    p.add_argument('--region', help='OVH Cloud Region', default='SBG1')
+    p.add_argument('--ssh-user', help='SSH Username (default admin)', default='admin')
+    p.add_argument('--region', help='OVH Cloud Region (default SBG1)', default='SBG1')
     p.add_argument('--name', help='OVH Cloud VM Instance Name(s)', default='Test')
     p.add_argument('--masters', help='Number of Master Instances', default=1, type=int)
     p.add_argument('--agents', help='Number of Agent Instances', default=1, type=int)
@@ -36,7 +37,7 @@ def main(argv):
     oi = OVHInstances(args.project)
     dcos.download(args.url)
     oi.create_instances(args.name, args.masters+args.agents, args.region, args.flavor, args.image, args.ssh_key)
-    dcos.write_config(oi.instances, args.masters, args.agents)
+    dcos.write_config(oi.instances, args.masters, args.agents, args.ssh_user)
     dcos.install()
 
     input('Press Enter to DESTROY all instances...')
@@ -57,7 +58,6 @@ class DCOSInstall:
             'process_timeout': 10000,
             'resolvers': ['8.8.8.8', '8.8.4.4'],
             'ssh_port': 22,
-            'ssh_user': 'admin',
             'telemetry_enabled': 'false'
         }
 
@@ -124,9 +124,10 @@ class DCOSInstall:
             self.log.info('\thttp://{}/'.format(master))
         self.log.warn('WARNING - All host firewalls are OPEN! Service ports are publicly available!')
 
-    def write_config(self, instances, master, agents):
+    def write_config(self, instances, master, agents, user):
         self.dcos_config['master_list'] = [i['ip'] for i in instances][:master]
         self.dcos_config['agent_list'] = [i['ip'] for i in instances][-agents:]
+        self.dcos_config['ssh_user'] = user
         with open('genconf/config.yaml', 'w') as outfile:
             outfile.write(yaml.dump(self.dcos_config))
 
