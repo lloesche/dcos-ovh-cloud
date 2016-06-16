@@ -10,6 +10,8 @@ import subprocess
 import atexit
 import logging
 import argparse
+import socket
+
 log_level = logging.DEBUG
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger('__main__').setLevel(log_level)
@@ -69,10 +71,13 @@ class DCOSInstall:
         if os.path.isfile(self.installer):
             local_size = os.path.getsize(self.installer)
             if local_size == remote_size:
-                self.log.info('Local file {} matches remote file size {} - skipping download'.format(self.installer, remote_size))
+                self.log.info(
+                    'Local file {} matches remote file size {} - skipping download'.format(self.installer, remote_size))
                 store = False
             else:
-                self.log.info("Local file {} with size {} doesn't match remote file size {}".format(self.installer, local_size, remote_size))
+                self.log.info(
+                    "Local file {} with size {} doesn't match remote file size {}".format(self.installer, local_size,
+                                                                                          remote_size))
 
         if store:
             chunk_size = 1024
@@ -174,7 +179,8 @@ class OVHInstances:
             for image in self.ovh.get('/cloud/project/{}/image'.format(self.project_id)):
                 if image['region'] not in self._images:
                     self._images[image['region']] = {}
-                self.log.debug('Found image {} in region {} with id {}'.format(image['name'], image['region'], image['id']))
+                self.log.debug(
+                    'Found image {} in region {} with id {}'.format(image['name'], image['region'], image['id']))
                 self._images[image['region']][image['name']] = image['id']
         return self._images
 
@@ -186,7 +192,8 @@ class OVHInstances:
                 for region in ssh_key['regions']:
                     if region not in self._ssh_keys:
                         self._ssh_keys[region] = {}
-                    self.log.debug('Found ssh key {} in region {} with id {}'.format(ssh_key['name'], region, ssh_key['id']))
+                    self.log.debug(
+                        'Found ssh key {} in region {} with id {}'.format(ssh_key['name'], region, ssh_key['id']))
                     self._ssh_keys[region][ssh_key['name']] = ssh_key['id']
         return self._ssh_keys
 
@@ -236,16 +243,24 @@ class OVHInstances:
         while wait:
             time.sleep(5)
             wait = False
-            for instance in (i for i in self.instances if not 'ip' in i):
+            for instance in (i for i in self.instances if 'ip' not in i):
                 r = self.ovh.get('/cloud/project/{}/instance/{}'.format(self.project_id, instance['id']))
                 if r['status'] == 'BUILD':
                     self.log.debug('Instance {} is still being build'.format(instance['id']))
                     wait = True
                 elif r['status'] == 'ACTIVE':
-                    instance['ip'] = r['ipAddresses'][0]['ip']
-                    self.log.info('Instance {} is active with IP {}'.format(instance['id'], instance['ip']))
+                    ip = r['ipAddresses'][0]['ip']
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    if sock.connect_ex((ip, 22)) == 0:
+                        instance['ip'] = ip
+                        self.log.info(
+                            'Instance {} is active with IP {} and ssh is available'.format(instance['id'], ip))
+                    else:
+                        self.log.info(
+                            'Instance {} is active with IP {} but ssh is not yet available'.format(instance['id'], ip))
                 elif r['status'] == 'ERROR':
-                    self.log.error('Instance {} entered an ERROR state - dumping response object\n{}'.format(instance['id'], r))
+                    self.log.error(
+                        'Instance {} entered an ERROR state - dumping response object\n{}'.format(instance['id'], r))
                     self.recover_instance_error(instance['id'], name, region, flavor, image, ssh_key)
                     wait = True
                     break
