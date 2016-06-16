@@ -26,7 +26,7 @@ def main(argv):
     p.add_argument('--flavor', help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
     p.add_argument('--image', help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
     p.add_argument('--ssh-key', help='OVH Cloud SSH Key Name', required=True)
-    p.add_argument('--ssh-user', help='SSH Username (default admin)', default='admin')
+    p.add_argument('--ssh-user', help='SSH Username (default centos)', default='centos')
     p.add_argument('--region', help='OVH Cloud Region (default SBG1)', default='SBG1')
     p.add_argument('--name', help='OVH Cloud VM Instance Name(s)', default='Test')
     p.add_argument('--masters', help='Number of Master Instances', default=1, type=int)
