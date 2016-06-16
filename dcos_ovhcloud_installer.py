@@ -113,7 +113,6 @@ class DCOSInstall:
         return True
 
     def install(self):
-        input('Press Enter to install DC/OS...')
         try:
             self.stream_cmd('./{} --genconf'.format(self.installer))
             self.stream_cmd('./{} --install-prereqs'.format(self.installer))
