@@ -35,13 +35,8 @@ def main(argv):
     p.add_argument('--agents', help='Number of Agent Instances', default=1, type=int)
     args = p.parse_args(argv)
 
-    oi = OVHInstances(args)
-    dcos = DCOSInstall(args, oi)
-    dcos.download()
-    oi.create_instances()
-    dcos.write_config()
-    dcos.system_prep()
-    dcos.install()
+    dcos = DCOSInstall(args, OVHInstances(args))
+    dcos.deploy()
 
     input('Press Enter to DESTROY all instances...')
     sys.exit(0)
@@ -65,6 +60,13 @@ class DCOSInstall:
             'ssh_port': 22,
             'telemetry_enabled': 'false'
         }
+
+    def deploy(self):
+        self.download()
+        self.oi.create_instances()
+        self.write_config()
+        self.system_prep()
+        self.install()
 
     def download(self):
         dcos_url = self.args.url
