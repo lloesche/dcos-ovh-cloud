@@ -114,7 +114,7 @@ class DCOSInstall:
         while p.poll() is None:
             sys.stdout.write(p.stdout.readline().decode(sys.stdout.encoding))
         if p.returncode != 0:
-            msg = 'ERROR: Command {} returned code {}'.format(cmd, p.returncode)
+            msg = 'Command {} returned code {}'.format(cmd, p.returncode)
             self.log.error(msg)
             raise ValueError(msg)
         return True
