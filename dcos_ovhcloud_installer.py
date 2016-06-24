@@ -22,17 +22,17 @@ log = logging.getLogger(__name__)
 
 def main(argv):
     p = argparse.ArgumentParser(description='Install DC/OS on OVH Cloud')
-    p.add_argument('--url', help='URL to dcos_generate_config.sh',
+    p.add_argument('--url',      help='URL to dcos_generate_config.sh',
                    default='https://downloads.dcos.io/dcos/EarlyAccess/dcos_generate_config.sh')
-    p.add_argument('--project', help='OVH Cloud Project Name', required=True)
-    p.add_argument('--flavor', help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
-    p.add_argument('--image', help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
-    p.add_argument('--ssh-key', help='OVH Cloud SSH Key Name', required=True)
+    p.add_argument('--project',  help='OVH Cloud Project Name', required=True)
+    p.add_argument('--flavor',   help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
+    p.add_argument('--image',    help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
+    p.add_argument('--ssh-key',  help='OVH Cloud SSH Key Name', required=True)
     p.add_argument('--ssh-user', help='SSH Username (default centos)', default='centos')
-    p.add_argument('--region', help='OVH Cloud Region (default SBG1)', default='SBG1')
-    p.add_argument('--name', help='OVH Cloud VM Instance Name(s)', default='Test')
-    p.add_argument('--masters', help='Number of Master Instances', default=1, type=int)
-    p.add_argument('--agents', help='Number of Agent Instances', default=1, type=int)
+    p.add_argument('--region',   help='OVH Cloud Region (default SBG1)', default='SBG1')
+    p.add_argument('--name',     help='OVH Cloud VM Instance Name(s)', default='Test')
+    p.add_argument('--masters',  help='Number of Master Instances', default=1, type=int)
+    p.add_argument('--agents',   help='Number of Agent Instances', default=1, type=int)
     args = p.parse_args(argv)
 
     dcos = DCOSInstall(args, OVHInstances(args))
@@ -153,10 +153,10 @@ class DCOSInstall:
 
         self.log.info('DC/OS is available at the following master endpoints:')
         for master in self.dcos_config['master_list']:
-            self.log.info('\thttps://{master}/\tssh://{master}'.format(master=master))
+            self.log.info('\thttps://{master}/\tssh://{user}@{master}'.format(master=master, user=self.args.ssh_user))
         self.log.info('The following agents have been installed:')
         for agent in self.dcos_config['agent_list']:
-            self.log.info('\tssh://{}'.format(agent))
+            self.log.info('\tssh://{}@{}'.format(self.args.ssh_user, agent))
         self.log.warn('WARNING - All host firewalls are OPEN! Service ports are publicly available!')
 
     def write_config(self):
