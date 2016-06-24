@@ -125,9 +125,8 @@ class DCOSInstall:
         remote_cmd = 'sudo systemctl disable firewalld; sudo systemctl stop firewalld'
         for i in self.oi.instances:
             host = i['ip']
-            cmd = "bash -c \"ssh -tt -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null" \
-                  " -o BatchMode=yes -i genconf/ssh_key {}@{} 'stty raw -echo; {}' < <(cat)\"".format(user, host,
-                                                                                                      remote_cmd)
+            cmd = "ssh -tt -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null" \
+                  " -o BatchMode=yes -i genconf/ssh_key {}@{} '{}' <&-".format(user, host, remote_cmd)
             self.log.debug('Preparing {}'.format(host))
             retries = 3
             success = False
@@ -141,6 +140,7 @@ class DCOSInstall:
                     time.sleep(10)
 
     def install(self):
+        self.log.info('Running the DC/OS installer')
         try:
             self.stream_cmd('./{} --genconf'.format(self.installer))
             self.stream_cmd('./{} --install-prereqs'.format(self.installer))
