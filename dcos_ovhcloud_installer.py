@@ -35,11 +35,12 @@ def main(argv):
     p.add_argument('--agents', help='Number of Agent Instances', default=1, type=int)
     args = p.parse_args(argv)
 
-    dcos = DCOSInstall()
-    oi = OVHInstances(args.project)
-    dcos.download(args.url)
-    oi.create_instances(args.name, args.masters+args.agents, args.region, args.flavor, args.image, args.ssh_key)
-    dcos.write_config(oi.instances, args.masters, args.agents, args.ssh_user)
+    oi = OVHInstances(args)
+    dcos = DCOSInstall(args, oi)
+    dcos.download()
+    oi.create_instances()
+    dcos.write_config()
+    dcos.system_prep()
     dcos.install()
 
     input('Press Enter to DESTROY all instances...')
@@ -47,8 +48,10 @@ def main(argv):
 
 
 class DCOSInstall:
-    def __init__(self):
+    def __init__(self, args, oi):
         self.log = logging.getLogger(self.__class__.__name__)
+        self.args = args
+        self.oi = oi
         self.masters = []
         self.agents = []
         self.installer = 'dcos_generate_config.sh'
@@ -63,7 +66,8 @@ class DCOSInstall:
             'telemetry_enabled': 'false'
         }
 
-    def download(self, dcos_url):
+    def download(self):
+        dcos_url = self.args.url
         self.log.info('Downloading DC/OS Installer from {}'.format(dcos_url))
         r = requests.get(dcos_url, stream=True)
         remote_size = int(r.headers.get('content-length'))
@@ -96,7 +100,8 @@ class DCOSInstall:
             os.chmod(self.installer, os.stat(self.installer).st_mode | stat.S_IEXEC)
 
         if not os.path.isfile('genconf/ip-detect'):
-            self.log.error('genconf/ip-detect is missing (details: https://dcos.io/docs/1.7/administration/installing/custom/advanced/)')
+            self.log.error('genconf/ip-detect is missing'
+                           ' (details: https://dcos.io/docs/1.7/administration/installing/custom/advanced/)')
             sys.exit(1)
         if not os.path.isfile('genconf/ssh_key'):
             self.log.error('genconf/ssh_key is missing (private key to ssh into nodes)')
@@ -112,6 +117,27 @@ class DCOSInstall:
             raise ValueError(msg)
         return True
 
+    def system_prep(self):
+        self.log.info('Preparing OVH systems for DC/OS installation')
+        user = self.args.ssh_user
+        remote_cmd = 'sudo systemctl disable firewalld; sudo systemctl stop firewalld'
+        for i in self.oi.instances:
+            host = i['ip']
+            cmd = "bash -c \"ssh -tt -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null" \
+                  " -o BatchMode=yes -i genconf/ssh_key {}@{} 'stty raw -echo; {}' < <(cat)\"".format(user, host,
+                                                                                                      remote_cmd)
+            self.log.debug('Preparing {}'.format(host))
+            retries = 3
+            success = False
+            while retries > 0 and not success:
+                try:
+                    self.stream_cmd(cmd)
+                    success = True
+                except ValueError:
+                    retries -= 1
+                    self.log.debug('Failed to prepare {} - {} retries left'.format(host, retries))
+                    time.sleep(10)
+
     def install(self):
         try:
             self.stream_cmd('./{} --genconf'.format(self.installer))
@@ -125,10 +151,17 @@ class DCOSInstall:
 
         self.log.info('DC/OS is available at the following master endpoints:')
         for master in self.dcos_config['master_list']:
-            self.log.info('\thttp://{}/'.format(master))
+            self.log.info('\thttps://{master}/\tssh://{master}'.format(master=master))
+        self.log.info('The following agents have been installed:')
+        for agent in self.dcos_config['agent_list']:
+            self.log.info('\tssh://{}'.format(agent))
         self.log.warn('WARNING - All host firewalls are OPEN! Service ports are publicly available!')
 
-    def write_config(self, instances, master, agents, user):
+    def write_config(self):
+        instances = self.oi.instances
+        master = self.args.masters
+        agents = self.args.agents
+        user = self.args.ssh_user
         self.dcos_config['master_list'] = [i['ip'] for i in instances][:master]
         self.dcos_config['agent_list'] = [i['ip'] for i in instances][-agents:]
         self.dcos_config['ssh_user'] = user
@@ -137,16 +170,17 @@ class DCOSInstall:
 
 
 class OVHInstances:
-    def __init__(self, project):
+    def __init__(self, args):
         self.log = logging.getLogger(self.__class__.__name__)
         atexit.register(self.cleanup)
+        self.args = args
         self.instances = []
         self.ovh = ovh.Client()
         self._projects = {}
         self._flavors = {}
         self._images = {}
         self._ssh_keys = {}
-        self.project_id = self.projects[project]['project_id']
+        self.project_id = self.projects[self.args.project]['project_id']
 
     @property
     def projects(self):
@@ -226,7 +260,14 @@ class OVHInstances:
         self.cleanup_instance(instance_id)
         self.instances.append({'id': self.create_instance(name, region, flavor, image, ssh_key)})
 
-    def create_instances(self, name, num, region, flavor, image, ssh_key):
+    def create_instances(self):
+        name = self.args.name
+        num = self.args.masters + self.args.agents
+        region = self.args.region
+        flavor = self.args.flavor
+        image = self.args.image
+        ssh_key = self.args.ssh_key
+
         self.log.info('Sending instance creation requests')
         for i in range(num):
             self.instances.append({'id': self.create_instance(name, region, flavor, image, ssh_key)})
