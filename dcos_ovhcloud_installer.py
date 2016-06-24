@@ -298,7 +298,7 @@ class OVHInstances:
                         self.log.info(
                             'Instance {} is active with IP {} and ssh is available'.format(instance['id'], ip))
                     else:
-                        self.log.info(
+                        self.log.debug(
                             'Instance {} is active with IP {} but ssh is not yet available'.format(instance['id'], ip))
                         wait = True
                 elif r['status'] == 'ERROR':
