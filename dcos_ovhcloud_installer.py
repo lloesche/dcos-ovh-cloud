@@ -11,6 +11,7 @@ import atexit
 import logging
 import argparse
 import socket
+from retrying import retry
 
 log_level = logging.DEBUG
 logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -177,7 +178,7 @@ class OVHInstances:
         atexit.register(self.cleanup)
         self.args = args
         self.instances = []
-        self.ovh = ovh.Client()
+        self.ovh = OVHClient()
         self._projects = {}
         self._flavors = {}
         self._images = {}
@@ -241,26 +242,27 @@ class OVHInstances:
         self.log.debug('Removing instance {}'.format(instance_id))
         self.ovh.delete('/cloud/project/{}/instance/{}'.format(self.project_id, instance_id))
 
-    def create_instance(self, name, region, flavor, image, ssh_key):
+    def create_instance(self, name, region, flavor, image, ssh_key, num=1):
         flavor_id = self.flavors[region][flavor]
         image_id = self.images[region][image]
         ssh_key_id = self.ssh_keys[region][ssh_key]
-        msg = 'Creating instance in region {} of type {} with image {}'.format(region, flavor, image)
+        s = '' if num == 1 else 's'
+        self.log.debug('Creating {} instance{} in region {} of type {} with image {}'.format(num, s, region, flavor, image))
         try:
-            r = self.ovh.post('/cloud/project/{}/instance'.format(self.project_id), serviceName=self.project_id,
+            r = self.ovh.post('/cloud/project/{}/instance/bulk'.format(self.project_id), serviceName=self.project_id,
                               flavorId=flavor_id, imageId=image_id, name=name, region=region, sshKeyId=ssh_key_id,
-                              monthlyBilling=False)
-            self.log.debug(msg+' and id {}'.format(r['id']))
+                              monthlyBilling=False, number=num)
+            instances = [{'id': i['id']} for i in r]
         except ovh.exceptions.APIError:
-            self.log.debug(msg)
             raise
-        return r['id']
+
+        return instances
 
     def recover_instance_error(self, instance_id, name, region, flavor, image, ssh_key):
         self.log.info('Encountered OVH Cloud ERROR - trying to replace failed instance')
         del(self.instances[next(i for (i, d) in enumerate(self.instances) if d["id"] == instance_id)])
         self.cleanup_instance(instance_id)
-        self.instances.append({'id': self.create_instance(name, region, flavor, image, ssh_key)})
+        self.instances.extend(self.create_instance(name, region, flavor, image, ssh_key))
 
     def create_instances(self):
         name = self.args.name
@@ -271,13 +273,7 @@ class OVHInstances:
         ssh_key = self.args.ssh_key
 
         self.log.info('Sending instance creation requests')
-        for i in range(num):
-            self.instances.append({'id': self.create_instance(name, region, flavor, image, ssh_key)})
-
-        # Bulk creation is broken and only ever creates 2 instances
-        #r = ovh.post('/cloud/project/{}/instance/bulk'.format(serviceName), serviceName=serviceName, flavorId=flavorId,
-        #           imageId=imageId, name=name, region=region, sshKeyId=sshKeyId, monthlyBilling=False, number=master+agents)
-        #instances = [{'id': i['id']} for i in r]
+        self.instances.extend(self.create_instance(name, region, flavor, image, ssh_key, num))
 
         self.log.info('Sent request to OVH Cloud API to create {} instances'.format(len(self.instances)))
 
@@ -309,6 +305,19 @@ class OVHInstances:
                     break
                 else:
                     self.log.error('Instance {} has an unexpected status {}'.format(instance['id'], r['status']))
+
+
+class OVHClient(ovh.Client):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @retry(stop_max_attempt_number=3)
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
+
+    @retry(stop_max_attempt_number=3)
+    def delete(self, *args, **kwargs):
+        return super().delete(*args, **kwargs)
 
 
 if __name__ == "__main__":
