@@ -307,15 +307,21 @@ class OVHInstances:
                     self.log.error('Instance {} has an unexpected status {}'.format(instance['id'], r['status']))
 
 
+def retry_on_apierror(exc):
+    return isinstance(exc, ovh.exceptions.APIError)
+
+
 class OVHClient(ovh.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @retry(stop_max_attempt_number=3)
+    @retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=30000,
+           retry_on_exception=retry_on_apierror)
     def get(self, *args, **kwargs):
         return super().get(*args, **kwargs)
 
-    @retry(stop_max_attempt_number=3)
+    @retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=30000,
+           retry_on_exception=retry_on_apierror)
     def delete(self, *args, **kwargs):
         return super().delete(*args, **kwargs)
 
