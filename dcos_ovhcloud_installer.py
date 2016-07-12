@@ -11,6 +11,7 @@ import atexit
 import logging
 import argparse
 import socket
+from multiprocessing.pool import ThreadPool
 from retrying import retry
 
 log_level = logging.DEBUG
@@ -235,8 +236,8 @@ class OVHInstances:
 
     def cleanup(self):
         self.log.info('Cleaning up instances')
-        for instance in self.instances:
-            self.cleanup_instance(instance['id'])
+        p = ThreadPool(10)
+        p.map(self.cleanup_instance, [i['id'] for i in self.instances])
 
     def cleanup_instance(self, instance_id):
         self.log.debug('Removing instance {}'.format(instance_id))
