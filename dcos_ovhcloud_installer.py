@@ -285,7 +285,7 @@ class OVHInstances:
             for instance in (i for i in self.instances if 'ip' not in i):
                 r = self.ovh.get('/cloud/project/{}/instance/{}'.format(self.project_id, instance['id']))
                 if r['status'] == 'BUILD':
-                    self.log.debug('Instance {} is still being build'.format(instance['id']))
+                    self.log.debug('Instance {} is still being built'.format(instance['id']))
                     wait = True
                 elif r['status'] == 'ACTIVE':
                     ip = r['ipAddresses'][0]['ip']
