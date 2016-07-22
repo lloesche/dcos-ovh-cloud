@@ -11,6 +11,7 @@ import atexit
 import logging
 import argparse
 import socket
+import shutil
 from multiprocessing.pool import ThreadPool
 from retrying import retry
 
@@ -72,36 +73,55 @@ class DCOSInstall:
 
     def download(self):
         dcos_url = self.args.url
-        self.log.info('Downloading DC/OS Installer from {}'.format(dcos_url))
-        r = requests.get(dcos_url, stream=True)
-        remote_size = int(r.headers.get('content-length'))
         store = True
-        if os.path.isfile(self.installer):
-            local_size = os.path.getsize(self.installer)
-            if local_size == remote_size:
-                self.log.info(
-                    'Local file {} matches remote file size {} - skipping download'.format(self.installer, remote_size))
-                store = False
-            else:
-                self.log.info(
-                    "Local file {} with size {} doesn't match remote file size {}".format(self.installer, local_size,
-                                                                                          remote_size))
+        self.log.info('Downloading DC/OS Installer from {}'.format(dcos_url))
 
-        if store:
-            chunk_size = 1024
-            downloaded = 0
-            last_per = -1
-            with open(self.installer, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=chunk_size):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += chunk_size
-                        per = int(downloaded * 100 / remote_size)
-                        if per != last_per and per % 10 == 0:
-                            self.log.debug('{}%'.format(per))
-                        last_per = per
-                f.flush()
-            os.chmod(self.installer, os.stat(self.installer).st_mode | stat.S_IEXEC)
+        if dcos_url.startswith('file://'):
+            local_dcos_installer = dcos_url[7:]
+            if os.path.isfile(local_dcos_installer):
+                if os.path.isfile(self.installer):
+                    remote_installer_size = os.path.getsize(local_dcos_installer)
+                    if remote_installer_size == os.path.getsize(self.installer):
+                        self.log.info(
+                            'Local file {} matches remote file size {} - skipping copy'.format(self.installer,
+                                                                                                   remote_installer_size))
+                        store = False
+                if store:
+                    shutil.copyfile(local_dcos_installer, self.installer)
+                    self.log.info('100%')
+            else:
+                self.log.error("Local file {} doesn't exist".format(local_dcos_installer))
+                sys.exit(1)
+        else:
+            r = requests.get(dcos_url, stream=True)
+            remote_installer_size = int(r.headers.get('content-length'))
+            if os.path.isfile(self.installer):
+                local_installer_size = os.path.getsize(self.installer)
+                if local_installer_size == remote_installer_size:
+                    self.log.info(
+                        'Local file {} matches remote file size {} - skipping download'.format(self.installer, remote_installer_size))
+                    store = False
+                else:
+                    self.log.info(
+                        "Local file {} with size {} doesn't match remote file size {}".format(self.installer, local_installer_size,
+                                                                                              remote_installer_size))
+
+            if store:
+                chunk_size = 1024
+                downloaded = 0
+                last_per = -1
+                with open(self.installer, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += chunk_size
+                            per = int(downloaded * 100 / remote_installer_size)
+                            if per != last_per and per % 10 == 0:
+                                self.log.debug('{}%'.format(per))
+                            last_per = per
+                    f.flush()
+
+        os.chmod(self.installer, os.stat(self.installer).st_mode | stat.S_IEXEC)
 
         if not os.path.isfile('genconf/ip-detect'):
             self.log.error('genconf/ip-detect is missing'
