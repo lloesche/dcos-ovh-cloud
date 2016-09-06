@@ -188,6 +188,7 @@ class DCOSInstall:
         user = self.args.ssh_user
         self.dcos_config['master_list'] = [i['ip'] for i in instances][:master]
         self.dcos_config['agent_list'] = [i['ip'] for i in instances][-agents:]
+        self.dcos_config['public_agent_list'] = []
         self.dcos_config['ssh_user'] = user
         with open('genconf/config.yaml', 'w') as outfile:
             outfile.write(yaml.dump(self.dcos_config))
