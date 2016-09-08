@@ -27,16 +27,17 @@ def main(argv):
     p = argparse.ArgumentParser(description='Install DC/OS on OVH Cloud')
     p.add_argument('--url',      help='URL to dcos_generate_config.sh',
                    default='https://downloads.dcos.io/dcos/EarlyAccess/dcos_generate_config.sh')
-    p.add_argument('--project',  help='OVH Cloud Project Name', required=True)
-    p.add_argument('--flavor',   help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
-    p.add_argument('--image',    help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
-    p.add_argument('--ssh-key',  help='OVH Cloud SSH Key Name', required=True)
-    p.add_argument('--security', help='Security mode (default permissive)', default='permissive')
-    p.add_argument('--ssh-user', help='SSH Username (default centos)', default='centos')
-    p.add_argument('--region',   help='OVH Cloud Region (default SBG1)', default='SBG1')
-    p.add_argument('--name',     help='OVH Cloud VM Instance Name(s)', default='Test')
-    p.add_argument('--masters',  help='Number of Master Instances', default=1, type=int)
-    p.add_argument('--agents',   help='Number of Agent Instances', default=1, type=int)
+    p.add_argument('--project',    help='OVH Cloud Project Name', required=True)
+    p.add_argument('--flavor',     help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
+    p.add_argument('--image',      help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
+    p.add_argument('--ssh-key',    help='OVH Cloud SSH Key Name', required=True)
+    p.add_argument('--security',   help='Security mode (default permissive)', default='permissive')
+    p.add_argument('--ssh-user',   help='SSH Username (default centos)', default='centos')
+    p.add_argument('--region',     help='OVH Cloud Region (default SBG1)', default='SBG1')
+    p.add_argument('--name',       help='OVH Cloud VM Instance Name(s)', default='Test')
+    p.add_argument('--masters',    help='Number of Master Instances (default 1)', default=1, type=int)
+    p.add_argument('--agents',     help='Number of Agent Instances (default 1)', default=1, type=int)
+    p.add_argument('--pub-agents', help='Number of Public Agent Instances (default 0)', default=0, type=int)
     args = p.parse_args(argv)
 
     dcos = DCOSInstall(args, OVHInstances(args))
@@ -53,6 +54,7 @@ class DCOSInstall:
         self.oi = oi
         self.masters = []
         self.agents = []
+        self.pubagents = []
         self.installer = 'dcos_generate_config.sh'
         self.dcos_config = {
             'bootstrap_url': 'file:///opt/dcos_install_tmp',
@@ -152,7 +154,7 @@ class DCOSInstall:
             cmd = "ssh -tt -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null" \
                   " -o BatchMode=yes -i genconf/ssh_key {}@{} '{}' <&-".format(user, host, remote_cmd)
             self.log.debug('Preparing {}'.format(host))
-            retries = 3
+            retries = 5
             success = False
             while retries > 0 and not success:
                 try:
@@ -175,22 +177,32 @@ class DCOSInstall:
             self.log.critical('An error occurred while installing DC/OS - aborting')
             sys.exit(1)
 
-        self.log.info('DC/OS is available at the following master endpoints:')
-        for master in self.dcos_config['master_list']:
-            self.log.info('\thttps://{master}/\tssh://{user}@{master}'.format(master=master, user=self.args.ssh_user))
-        self.log.info('The following agents have been installed:')
-        for agent in self.dcos_config['agent_list']:
-            self.log.info('\tssh://{}@{}'.format(self.args.ssh_user, agent))
+        if len(self.dcos_config['master_list']) > 0:
+            self.log.info('DC/OS is available at the following master endpoints:')
+            for master in self.dcos_config['master_list']:
+                self.log.info('\thttps://{master}/\tssh://{user}@{master}'.format(master=master, user=self.args.ssh_user))
+
+        if len(self.dcos_config['agent_list']) > 0:
+            self.log.info('The following agents have been installed:')
+            for agent in self.dcos_config['agent_list']:
+                self.log.info('\tssh://{}@{}'.format(self.args.ssh_user, agent))
+
+        if len(self.dcos_config['public_agent_list']) > 0:
+            self.log.info('The following public agents have been installed:')
+            for pubagent in self.dcos_config['public_agent_list']:
+                self.log.info('\tssh://{}@{}'.format(self.args.ssh_user, pubagent))
+
         self.log.warn('WARNING - All host firewalls are OPEN! Service ports are publicly available!')
 
     def write_config(self):
         instances = self.oi.instances
         master = self.args.masters
         agents = self.args.agents
+        pubagents = self.args.pub_agents
         user = self.args.ssh_user
-        self.dcos_config['master_list'] = [i['ip'] for i in instances][:master]
-        self.dcos_config['agent_list'] = [i['ip'] for i in instances][-agents:]
-        self.dcos_config['public_agent_list'] = []
+        self.dcos_config['master_list'] = [i['ip'] for i in instances][:master] if master > 0 else []
+        self.dcos_config['agent_list'] = [i['ip'] for i in instances][master:master+agents] if agents > 0 else []
+        self.dcos_config['public_agent_list'] = [i['ip'] for i in instances][-pubagents:] if pubagents > 0 else []
         self.dcos_config['ssh_user'] = user
         with open('genconf/config.yaml', 'w') as outfile:
             outfile.write(yaml.dump(self.dcos_config))
@@ -299,7 +311,7 @@ class OVHInstances:
 
     def create_instances(self):
         name = self.args.name
-        num = self.args.masters + self.args.agents
+        num = self.args.masters + self.args.agents + self.args.pub_agents
         region = self.args.region
         flavor = self.args.flavor
         image = self.args.image
