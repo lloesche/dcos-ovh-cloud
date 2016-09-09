@@ -37,6 +37,7 @@ def main(argv):
     p.add_argument('--name',       help='OVH Cloud VM Instance Name(s)', default='Test')
     p.add_argument('--masters',    help='Number of Master Instances (default 1)', default=1, type=int)
     p.add_argument('--agents',     help='Number of Agent Instances (default 1)', default=1, type=int)
+    p.add_argument('--cleanup',    help='Cleanup on error (default yes)', default='yes')
     p.add_argument('--pub-agents', help='Number of Public Agent Instances (default 0)', default=0, type=int)
     args = p.parse_args(argv)
 
@@ -216,7 +217,8 @@ class DCOSInstall:
 class OVHInstances:
     def __init__(self, args):
         self.log = logging.getLogger(self.__class__.__name__)
-        atexit.register(self.cleanup)
+        if args.cleanup == 'yes':
+                atexit.register(self.cleanup)
         self.args = args
         self.instances = []
         self.ovh = OVHClient()
