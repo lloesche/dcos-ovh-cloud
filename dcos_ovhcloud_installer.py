@@ -164,6 +164,9 @@ class DCOSInstall:
                     retries -= 1
                     self.log.debug('Failed to prepare {} - {} retries left'.format(host, retries))
                     time.sleep(10)
+            if not success:
+                msg = 'Failed to prepare {} - aborting installation'.format(host)
+                raise RuntimeError(msg)
 
     def install(self):
         self.log.info('Running the DC/OS installer')
