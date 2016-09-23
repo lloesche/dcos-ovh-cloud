@@ -149,7 +149,7 @@ class DCOSInstall:
         self.log.info('Preparing OVH systems for DC/OS installation')
         user = self.args.ssh_user
         remote_cmd = ('sudo rpm --rebuilddb; sudo yum -y install ntp;'
-                      'sudo systemctl enable ntpd; sudo systemct start ntpd;'
+                      'sudo systemctl enable ntpd; sudo systemctl start ntpd;'
                       'sudo systemctl disable firewalld; sudo systemctl stop firewalld')
         for i in self.oi.instances:
             host = i['ip']
