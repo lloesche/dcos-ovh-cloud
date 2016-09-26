@@ -1,4 +1,4 @@
-#[Mesosphere DC/OS](https://dcos.io) Quickstart
+#[DC/OS](https://dcos.io) Quickstart
 
 If you're super eager to get started [jump to TL;DR](#tldr) below!
 
