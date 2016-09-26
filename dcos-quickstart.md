@@ -21,6 +21,7 @@ Things you need:
 * An ip-detect script saved at `./genconf/ip-detect`
 * The ssh key to access your nodes saved at `./genconf/ssh_key` (mode 0600)
 * The DC/OS Installer config saved at `./genconf/config.yaml`
+
 Note regarding ip-detect script: This is just a script or program various parts of DC/OS will execute on startup. They expect it to print the IP address on stdout DC/OS is supposed bind to. This is mainly used for machines with multiple network interfaces.
 
 I'm usually using the following script which prints the IP of the interface that is connected to the default gateway:
