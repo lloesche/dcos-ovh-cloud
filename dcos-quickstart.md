@@ -10,7 +10,7 @@ It documents how to use the DC/OS CLI Installer to perform the installation. Thi
 From a systems perspective you require at least 2 nodes. A master and an agent. The master will schedule the workloads (Linux programs and containers) and the agent will run them. For a HA setup you require at least 3 master nodes, 5 is better.
 DC/OS uses Zookeeper which requires a simple majority to vote a quorum. So in a 3 master cluster 1 node can fail and in a 5 node cluster 2 nodes can fail for the cluster to still be operational.
 
-You can also add public agents which have a special role in DC/OS. They are meant to be exposed to the Internet except for their tcp ports 22 (ssh) and 5051 (mesos-agent).
+You can also add public agents which have a special role in DC/OS. They are meant to be exposed to the Internet except for their tcp ports 22 (ssh), 5051 (mesos-agent) and 61001 (adminrouter).
 The idea is that your masters and (private) agents run inside an internal firewalled network. And the public agents while having access to the master IPs are located in a public network.
 It is however up to the user to get this network security into place. Either by creating local iptables on all nodes or putting firewalls in front of the nodes. DC/OS itself is currently not firewalling anything though there are plans to do so in the future.  
 ## Requirements
