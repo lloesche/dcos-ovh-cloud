@@ -7,7 +7,7 @@ This document assumes you roughly know what DC/OS is and why you want it. If not
 
 It documents how to use the DC/OS CLI Installer to perform the installation. This is the easiest way of installing a DC/OS cluster without a GUI. For large installations there's [the Advanced DC/OS Installation Guide](https://dcos.io/docs/1.8/administration/installing/custom/advanced/). 
 
-From a systems perspective you require at least 2 nodes. A master and an agent. The master will schedule the workloads the agent will run it. For a HA setup you require at least 3 master nodes, 5 is better.
+From a systems perspective you require at least 2 nodes. A master and an agent. The master will schedule the workloads (Linux programs and containers) and the agent will run them. For a HA setup you require at least 3 master nodes, 5 is better.
 DC/OS uses Zookeeper which requires a simple majority to vote a quorum. So in a 3 master cluster 1 node can fail and in a 5 node cluster 2 nodes can fail for the cluster to still be operational.
 
 You can also add public agents which have a special role in DC/OS. They are meant to be exposed to the Internet except for their tcp ports 22 (ssh) and 5051 (mesos-agent).
@@ -110,6 +110,9 @@ Quick explanation of the steps:
 * `--postflight` Makes sure DC/OS was installed successfully
 
 That's it. If everything went well you'll be able to log into DC/OS using http on any of the master IPs.
+
+## Network Information
+DC/OS is made up of a lot of moving parts. Refer to [the DC/OS Ports documentation](https://dcos.io/docs/1.8/administration/installing/ports/) for an overview of all the network ports in use. It's currently recommended to allow free communication between the nodes of a cluster.
 
 ## TL;DR
 At the very least replace `master_list`, `agent_list` and `ssh_user`.
