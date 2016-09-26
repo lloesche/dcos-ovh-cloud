@@ -1,6 +1,6 @@
 #[Mesosphere DC/OS](https://dcos.io) Quickstart
 
-If you're super eager to get started [jump to TL;DR](#TL;DR) below!
+If you're super eager to get started [jump to TL;DR](#tldr) below!
 
 ## Intro
 This document assumes you roughly know what DC/OS is and why you want it. If not check out [the Overview on dcos.io](https://dcos.io/docs/1.8/overview/what-is-dcos/)
