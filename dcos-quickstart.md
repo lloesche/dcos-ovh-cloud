@@ -1,4 +1,4 @@
-#[DC/OS](https://dcos.io) Quickstart
+#[DC/OS](https://dcos.io) Quick Start
 
 If you're super eager to get started [jump to TL;DR](#tldr) below!
 
