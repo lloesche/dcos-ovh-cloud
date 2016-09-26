@@ -1,61 +1,6 @@
 #[Mesosphere DC/OS](https://dcos.io) Quickstart
-## TL;DR
-At the very least replace `master_list`, `agent_list` and `ssh_user` below.
-```
-mkdir genconf
-cp ~/.ssh/id_rsa genconf/ssh_key && \
-chmod 600 genconf/ssh_key
 
-cat << EOF > genconf/ip-detect
-#!/usr/bin/env bash
-set -o nounset -o errexit -o pipefail
-export PATH=/sbin:/usr/sbin:/bin:/usr/bin:\$PATH
-MASTER_IP=\${MASTER_IP:-8.8.8.8}
-INTERFACE_IP=\$(ip r g \${MASTER_IP} | \
-awk -v master_ip=\${MASTER_IP} '
-BEGIN { ec = 1 }
-{
-  if(\$1 == master_ip) {
-    print \$7
-    ec = 0
-  } else if(\$1 == "local") {
-    print \$6
-    ec = 0
-  }
-  if (ec == 0) exit;
-}
-END { exit ec }
-')
-echo \$INTERFACE_IP
-EOF
-
-cat << EOF > genconf/config.yaml
-master_list:
-- 10.0.0.11
-agent_list:
-- 10.0.0.21
-- 10.0.0.22
-public_agent_list: []
-ssh_user: admin
-cluster_name: DCOS Test
-bootstrap_url: file:///opt/dcos_install_tmp
-exhibitor_storage_backend: static
-master_discovery: static
-process_timeout: 10000
-resolvers: [8.8.8.8, 8.8.4.4]
-ssh_port: 22
-telemetry_enabled: 'false'
-EOF
-
-curl -o dcos_generate_config.sh https://downloads.dcos.io/dcos/EarlyAccess/dcos_generate_config.sh
-chmod +x dcos_generate_config.sh
-
-./dcos_generate_config.sh --genconf         && \
-./dcos_generate_config.sh --install-prereqs && \
-./dcos_generate_config.sh --preflight       && \
-./dcos_generate_config.sh --deploy          && \
-./dcos_generate_config.sh --postflight
-```
+If you're super eager to get started [jump to TL;DR](#TL;DR) below!
 
 ## Intro
 This document assumes you roughly know what DC/OS is and why you want it. If not check out [the Overview on dcos.io](https://dcos.io/docs/1.8/overview/what-is-dcos/)
@@ -165,3 +110,61 @@ Quick explanation of the steps:
 * `--postflight` Makes sure DC/OS was installed successfully
 
 That's it. If everything went well you'll be able to log into DC/OS using http on any of the master IPs.
+
+## TL;DR
+At the very least replace `master_list`, `agent_list` and `ssh_user`.
+```
+mkdir genconf
+cp ~/.ssh/id_rsa genconf/ssh_key && \
+chmod 600 genconf/ssh_key
+
+cat << EOF > genconf/ip-detect
+#!/usr/bin/env bash
+set -o nounset -o errexit -o pipefail
+export PATH=/sbin:/usr/sbin:/bin:/usr/bin:\$PATH
+MASTER_IP=\${MASTER_IP:-8.8.8.8}
+INTERFACE_IP=\$(ip r g \${MASTER_IP} | \
+awk -v master_ip=\${MASTER_IP} '
+BEGIN { ec = 1 }
+{
+  if(\$1 == master_ip) {
+    print \$7
+    ec = 0
+  } else if(\$1 == "local") {
+    print \$6
+    ec = 0
+  }
+  if (ec == 0) exit;
+}
+END { exit ec }
+')
+echo \$INTERFACE_IP
+EOF
+
+cat << EOF > genconf/config.yaml
+master_list:
+- 10.0.0.11
+agent_list:
+- 10.0.0.21
+- 10.0.0.22
+public_agent_list: []
+ssh_user: admin
+cluster_name: DCOS Test
+bootstrap_url: file:///opt/dcos_install_tmp
+exhibitor_storage_backend: static
+master_discovery: static
+process_timeout: 10000
+resolvers: [8.8.8.8, 8.8.4.4]
+ssh_port: 22
+telemetry_enabled: 'false'
+EOF
+
+curl -o dcos_generate_config.sh https://downloads.dcos.io/dcos/EarlyAccess/dcos_generate_config.sh
+chmod +x dcos_generate_config.sh
+
+./dcos_generate_config.sh --genconf         && \
+./dcos_generate_config.sh --install-prereqs && \
+./dcos_generate_config.sh --preflight       && \
+./dcos_generate_config.sh --deploy          && \
+./dcos_generate_config.sh --postflight
+```
