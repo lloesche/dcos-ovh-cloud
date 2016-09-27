@@ -25,4 +25,4 @@ $ ./dcos_ovhcloud_installer.py --project SomeOVHCloudProject --ssh-key "SomeOVHC
 ```
 
 ## DC/OS Quick Start
-If you're interested in DC/OS independent of the OVH cloud check out [the DC/OS Quick Start](https://github.com/lloesche/dcos-ovh-cloud/blob/master/dcos-quickstart.md).
+If you're interested in DC/OS independent of the OVH Cloud check [the DC/OS Quick Start](https://github.com/lloesche/dcos-ovh-cloud/blob/master/dcos-quickstart.md). The steps described in there are what this Installer runs after initializing the OVH Cloud VMs.
