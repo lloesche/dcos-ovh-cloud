@@ -38,12 +38,19 @@ def main(argv):
     p.add_argument('--masters',    help='Number of Master Instances (default 1)', default=1, type=int)
     p.add_argument('--agents',     help='Number of Agent Instances (default 1)', default=1, type=int)
     p.add_argument('--pub-agents', help='Number of Public Agent Instances (default 0)', default=0, type=int)
+    p.add_argument('--no-cleanup', help="Don't clean up Instances on EXIT", dest='cleanup', action='store_false',
+                   default=True)
+    p.add_argument('--no-error-cleanup', help="Don't clean up Instances on ERROR", dest='errclnup',
+                   action='store_false', default=True)
     args = p.parse_args(argv)
 
     dcos = DCOSInstall(args, OVHInstances(args))
     dcos.deploy()
 
-    input('Press Enter to DESTROY all instances...')
+    if args.cleanup:
+        input('Press Enter to DESTROY all instances...')
+        if not args.errclnup:
+            dcos.oi.cleanup()
     sys.exit(0)
 
 
@@ -216,7 +223,8 @@ class DCOSInstall:
 class OVHInstances:
     def __init__(self, args):
         self.log = logging.getLogger(self.__class__.__name__)
-        atexit.register(self.cleanup)
+        if args.errclnup:
+            atexit.register(self.cleanup)
         self.args = args
         self.instances = []
         self.ovh = OVHClient()
