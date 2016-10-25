@@ -51,6 +51,9 @@ def main(argv):
         input('Press Enter to DESTROY all instances...')
         if not args.errclnup:
             dcos.oi.cleanup()
+    else:
+        if args.errclnup:
+            atexit.unregister(dcos.oi.cleanup)
     sys.exit(0)
 
 
