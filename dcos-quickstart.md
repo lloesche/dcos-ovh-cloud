@@ -51,8 +51,11 @@ echo $INTERFACE_IP
 1) Download the DC/OS Installer to `./dcos_generate_config.sh`
   * Latest stable (GA) release: `https://downloads.dcos.io/dcos/stable/dcos_generate_config.sh`
   * Latest early access (EA) release `https://downloads.dcos.io/dcos/EarlyAccess/dcos_generate_config.sh`
+
 2) Save the ip-detect script to `./genconf/ip-detect`
+
 3) Save the SSH private key that has access to your nodes to `./genconf/ssh_key` and `chmod 0600 ./genconf/ip-detect`
+
 4) Save the DC/OS Installer config.yaml to `./genconf/config.yaml`
 
 When those four files are in place  you should have a structure like this:
