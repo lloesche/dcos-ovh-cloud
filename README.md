@@ -24,5 +24,7 @@ install Python 3 and required Python modules (`pip install -r requirements.txt`)
 $ ./dcos_ovhcloud_installer.py --project SomeOVHCloudProject --ssh-key "SomeOVHCloudKey" --masters 3 --agents 10 --pub-agents 2 --url https://downloads.dcos.io/dcos/stable/dcos_generate_config.sh
 ```
 
+I mainly use this tool for development and quick testing where I spin up a cluster, run some tests and then tear it down. So the default behaviour is to delete the cluster when the script exits. You can override this behaviour using the `--no-cleanup` flag.
+
 ## DC/OS Quick Start
 If you're interested in DC/OS independent of the OVH Cloud check [the DC/OS Quick Start](https://github.com/lloesche/dcos-ovh-cloud/blob/master/dcos-quickstart.md). The steps described in there are what this Installer runs after initializing the OVH Cloud VMs.
