@@ -21,7 +21,12 @@ install Python 3 and required Python modules (`pip install -r requirements.txt`)
 
 ##Example
 ```
-$ ./dcos_ovhcloud_installer.py --project SomeOVHCloudProject --ssh-key "SomeOVHCloudKey" --masters 3 --agents 10 --pub-agents 2 --url https://downloads.dcos.io/dcos/stable/dcos_generate_config.sh
+$ ./dcos_ovhcloud_installer.py --project SomeOVHCloudProject \
+                               --ssh-key "SomeOVHCloudKey" \
+                               --masters 3 \
+                               --agents 10 \
+                               --pub-agents 2 \
+                               --url https://downloads.dcos.io/dcos/stable/dcos_generate_config.sh
 ```
 
 I mainly use this tool for development and quick testing where I spin up a cluster, run some tests and then tear it down. So the default behaviour is to delete the cluster when the script exits. You can override this behaviour using the `--no-cleanup` flag.
