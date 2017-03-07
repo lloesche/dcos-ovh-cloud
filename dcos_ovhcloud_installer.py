@@ -161,7 +161,10 @@ class DCOSInstall:
         user = self.args.ssh_user
         remote_cmd = ('sudo rpm --rebuilddb; sudo yum -y install ntp;'
                       'sudo systemctl enable ntpd; sudo systemctl start ntpd;'
-                      'sudo systemctl disable firewalld; sudo systemctl stop firewalld;')
+                      'sudo systemctl disable firewalld; sudo systemctl stop firewalld;'
+                      'echo -e "net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1"'
+                      '|sudo tee /etc/sysctl.d/01-dcos-docker-overlay.conf;'
+                      'sudo sysctl --system;')
         if self.args.ssh_port != 22:
             remote_cmd += ('echo -e "\nPort {}" | sudo tee -a /etc/ssh/sshd_config;'
                            'sudo systemctl restart sshd;').format(self.args.ssh_port)
@@ -169,7 +172,7 @@ class DCOSInstall:
             host = i['ip']
             cmd = "ssh -tt -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null" \
                   " -o BatchMode=yes -i genconf/ssh_key {}@{} '{}' <&-".format(user, host, remote_cmd)
-            self.log.debug('Preparing {}'.format(host))
+            self.log.debug('Preparing {}'.format(remote_cmd, host))
             retries = 5
             success = False
             while retries > 0 and not success:
