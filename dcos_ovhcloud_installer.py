@@ -33,6 +33,7 @@ def main(argv):
     p.add_argument('--ssh-key',    help='OVH Cloud SSH Key Name', required=True)
     p.add_argument('--security',   help='Security mode (default permissive)', default='permissive')
     p.add_argument('--ssh-user',   help='SSH Username (default centos)', default='centos')
+    p.add_argument('--ssh-port',   help='SSH Port (default 22)', default=22, type=int)
     p.add_argument('--region',     help='OVH Cloud Region (default SBG1)', default='SBG1')
     p.add_argument('--name',       help='OVH Cloud VM Instance Name(s)', default='Test')
     p.add_argument('--masters',    help='Number of Master Instances (default 1)', default=1, type=int)
@@ -74,7 +75,7 @@ class DCOSInstall:
             'security': args.security,
             'process_timeout': 10000,
             'resolvers': ['8.8.8.8', '8.8.4.4'],
-            'ssh_port': 22,
+            'ssh_port': self.args.ssh_port,
             'telemetry_enabled': 'false'
         }
 
@@ -160,12 +161,18 @@ class DCOSInstall:
         user = self.args.ssh_user
         remote_cmd = ('sudo rpm --rebuilddb; sudo yum -y install ntp;'
                       'sudo systemctl enable ntpd; sudo systemctl start ntpd;'
-                      'sudo systemctl disable firewalld; sudo systemctl stop firewalld')
+                      'sudo systemctl disable firewalld; sudo systemctl stop firewalld;'
+                      'echo -e "net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1"'
+                      '|sudo tee /etc/sysctl.d/01-dcos-docker-overlay.conf;'
+                      'sudo sysctl --system;')
+        if self.args.ssh_port != 22:
+            remote_cmd += ('echo -e "\nPort {}" | sudo tee -a /etc/ssh/sshd_config;'
+                           'sudo systemctl restart sshd;').format(self.args.ssh_port)
         for i in self.oi.instances:
             host = i['ip']
             cmd = "ssh -tt -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null" \
                   " -o BatchMode=yes -i genconf/ssh_key {}@{} '{}' <&-".format(user, host, remote_cmd)
-            self.log.debug('Preparing {}'.format(host))
+            self.log.debug('Preparing {}'.format(remote_cmd, host))
             retries = 5
             success = False
             while retries > 0 and not success:
@@ -195,7 +202,7 @@ class DCOSInstall:
         if len(self.dcos_config['master_list']) > 0:
             self.log.info('DC/OS is available at the following master endpoints:')
             for master in self.dcos_config['master_list']:
-                self.log.info('\thttps://{master}/\tssh://{user}@{master}'.format(master=master, user=self.args.ssh_user))
+                self.log.info('\thttp://{master}/\tssh://{user}@{master}'.format(master=master, user=self.args.ssh_user))
 
         if len(self.dcos_config['agent_list']) > 0:
             self.log.info('The following agents have been installed:')
