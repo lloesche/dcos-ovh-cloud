@@ -202,7 +202,7 @@ class DCOSInstall:
         if len(self.dcos_config['master_list']) > 0:
             self.log.info('DC/OS is available at the following master endpoints:')
             for master in self.dcos_config['master_list']:
-                self.log.info('\thttps://{master}/\tssh://{user}@{master}'.format(master=master, user=self.args.ssh_user))
+                self.log.info('\thttp://{master}/\tssh://{user}@{master}'.format(master=master, user=self.args.ssh_user))
 
         if len(self.dcos_config['agent_list']) > 0:
             self.log.info('The following agents have been installed:')
