@@ -172,7 +172,7 @@ class DCOSInstall:
             host = i['ip']
             cmd = "ssh -tt -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o UserKnownHostsFile=/dev/null" \
                   " -o BatchMode=yes -i genconf/ssh_key {}@{} '{}' <&-".format(user, host, remote_cmd)
-            self.log.debug('Preparing {}'.format(remote_cmd, host))
+            self.log.debug('Preparing {}'.format(host))
             retries = 5
             success = False
             while retries > 0 and not success:
