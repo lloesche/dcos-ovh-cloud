@@ -2,7 +2,9 @@
 import ovh
 import time
 import requests
+import os
 import os.path
+import pwd
 import stat
 import yaml
 import sys
@@ -305,19 +307,20 @@ class OVHInstances:
         flavor_id = self.flavors[region][flavor]
         image_id = self.images[region][image]
         ssh_key_id = self.ssh_keys[region][ssh_key]
+        user_data = "user:" + pwd.getpwuid(os.getuid()).pw_name
         s = '' if num == 1 else 's'
         self.log.debug('Creating {} instance{} in region {} of type {} with image {}'.format(num, s, region, flavor, image))
         try:
             if num > 1:
                 r = self.ovh.post('/cloud/project/{}/instance/bulk'.format(self.project_id), serviceName=self.project_id,
                                   flavorId=flavor_id, imageId=image_id, name=name, region=region, sshKeyId=ssh_key_id,
-                                  monthlyBilling=False, number=num)
+                                  monthlyBilling=False, number=num, userData=user_data)
                 instances = [{'id': i['id']} for i in r]
             elif num == 1:
                 r = self.ovh.post('/cloud/project/{}/instance'.format(self.project_id),
                                   serviceName=self.project_id,
                                   flavorId=flavor_id, imageId=image_id, name=name, region=region, sshKeyId=ssh_key_id,
-                                  monthlyBilling=False)
+                                  monthlyBilling=False, userData=user_data)
                 instances = [{'id': r['id']}]
             else:
                 self.log.error('Invalid number of instances {}'.format(num))
