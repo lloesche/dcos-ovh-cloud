@@ -25,21 +25,22 @@ log = logging.getLogger(__name__)
 
 def main(argv):
     p = argparse.ArgumentParser(description='Install DC/OS on OVH Cloud')
-    p.add_argument('--url',      help='URL to dcos_generate_config.sh',
+    p.add_argument('--url',       help='URL to dcos_generate_config.sh',
                    default='https://downloads.dcos.io/dcos/EarlyAccess/dcos_generate_config.sh')
-    p.add_argument('--project',    help='OVH Cloud Project Name', required=True)
-    p.add_argument('--flavor',     help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
-    p.add_argument('--image',      help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
-    p.add_argument('--ssh-key',    help='OVH Cloud SSH Key Name', required=True)
-    p.add_argument('--security',   help='Security mode (default permissive)', default='permissive')
-    p.add_argument('--ssh-user',   help='SSH Username (default centos)', default='centos')
-    p.add_argument('--ssh-port',   help='SSH Port (default 22)', default=22, type=int)
-    p.add_argument('--region',     help='OVH Cloud Region (default SBG1)', default='SBG1')
-    p.add_argument('--name',       help='OVH Cloud VM Instance Name(s)', default='Test')
-    p.add_argument('--masters',    help='Number of Master Instances (default 1)', default=1, type=int)
-    p.add_argument('--agents',     help='Number of Agent Instances (default 1)', default=1, type=int)
-    p.add_argument('--pub-agents', help='Number of Public Agent Instances (default 0)', default=0, type=int)
-    p.add_argument('--no-cleanup', help="Don't clean up Instances on EXIT", dest='cleanup', action='store_false',
+    p.add_argument('--project',     help='OVH Cloud Project Name', required=True)
+    p.add_argument('--flavor',      help='OVH Cloud Machine Type (default hg-15)', default='hg-15')
+    p.add_argument('--image',       help='OVH Cloud OS Image (default Centos 7)', default='Centos 7')
+    p.add_argument('--ssh-key',     help='OVH Cloud SSH Key Name', required=True)
+    p.add_argument('--security',    help='Security mode (default permissive)', default='permissive')
+    p.add_argument('--ssh-user',    help='SSH Username (default centos)', default='centos')
+    p.add_argument('--ssh-port',    help='SSH Port (default 22)', default=22, type=int)
+    p.add_argument('--region',      help='OVH Cloud Region (default SBG1)', default='SBG1')
+    p.add_argument('--name',        help='OVH Cloud VM Instance Name(s)', default='Test')
+    p.add_argument('--docker-size', help='Docker Disk Size in GiB (default 10G)', default=10, type=int)
+    p.add_argument('--masters',     help='Number of Master Instances (default 1)', default=1, type=int)
+    p.add_argument('--agents',      help='Number of Agent Instances (default 1)', default=1, type=int)
+    p.add_argument('--pub-agents',  help='Number of Public Agent Instances (default 0)', default=0, type=int)
+    p.add_argument('--no-cleanup',  help="Don't clean up Instances on EXIT", dest='cleanup', action='store_false',
                    default=True)
     p.add_argument('--no-error-cleanup', help="Don't clean up Instances on ERROR", dest='errclnup',
                    action='store_false', default=True)
@@ -81,7 +82,7 @@ class DCOSInstall:
 
     def deploy(self):
         self.download()
-        self.oi.create_instances()
+        self.oi.system_create()
         self.write_config()
         self.system_prep()
         self.install()
@@ -159,7 +160,12 @@ class DCOSInstall:
     def system_prep(self):
         self.log.info('Preparing OVH systems for DC/OS installation')
         user = self.args.ssh_user
-        remote_cmd = ('sudo rpm --rebuilddb; sudo yum -y install ntp;'
+
+        remote_cmd = ('sudo mkfs.xfs -n ftype=1 /dev/sdb;'
+                      'sudo mkdir -p /var/lib/docker;'
+                      'echo -e "/dev/sdb\t/var/lib/docker\txfs\tdefaults\t0\t0" | sudo tee -a /etc/fstab;'
+                      'sudo mount /var/lib/docker;'
+                      'sudo rpm --rebuilddb; sudo yum -y install ntp;'
                       'sudo systemctl enable ntpd; sudo systemctl start ntpd;'
                       'sudo systemctl disable firewalld; sudo systemctl stop firewalld;'
                       'echo -e "net.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1"'
@@ -237,6 +243,7 @@ class OVHInstances:
             atexit.register(self.cleanup)
         self.args = args
         self.instances = []
+        self.volumes = []
         self.ovh = OVHClient()
         self._projects = {}
         self._flavors = {}
@@ -293,13 +300,24 @@ class OVHInstances:
         return self._ssh_keys
 
     def cleanup(self):
-        self.log.info('Cleaning up instances')
+        self.log.info('Cleaning up volumes and instances')
         p = ThreadPool(10)
+        p.map(self.cleanup_volume, self.volumes)
         p.map(self.cleanup_instance, [i['id'] for i in self.instances])
 
     def cleanup_instance(self, instance_id):
-        self.log.debug('Removing instance {}'.format(instance_id))
+        self.log.debug('Cleaning up instance {}'.format(instance_id))
         self.ovh.delete('/cloud/project/{}/instance/{}'.format(self.project_id, instance_id))
+
+    def cleanup_volume(self, volume_id):
+        self.log.debug('Cleaning up volume {}'.format(volume_id))
+        self.detach_volume(volume_id)
+        self.wait_for_volume(volume_id, wait_status='available')
+        self.delete_volume(volume_id)
+
+    def delete_volume(self, volume_id):
+        self.log.debug('Removing volume {}'.format(volume_id))
+        self.ovh.delete('/cloud/project/{}/volume/{}'.format(self.project_id, volume_id))
 
     def create_instance(self, name, region, flavor, image, ssh_key, num=1):
         flavor_id = self.flavors[region][flavor]
@@ -320,17 +338,80 @@ class OVHInstances:
                                   monthlyBilling=False)
                 instances = [{'id': r['id']}]
             else:
-                self.log.error('Invalid number of instances {}'.format(num))
+                raise ValueError('Invalid number of instances {}'.format(num))
+            return instances
         except ovh.exceptions.APIError:
             raise
 
-        return instances
+    def create_volume(self, region, size, type='classic'):
+        self.log.debug('Creating volume in region {} of size {} GiB type {}'.format(region, size, type))
+        try:
+            r = self.ovh.post('/cloud/project/{}/volume'.format(self.project_id),
+                              serviceName=self.project_id,
+                              region=region,
+                              size=size,
+                              type=type)
+            self.log.debug('Created volume with Id {}'.format(r['id']))
+            return r['id']
+        except ovh.exceptions.APIError:
+            raise
 
     def recover_instance_error(self, instance_id, name, region, flavor, image, ssh_key):
         self.log.info('Encountered OVH Cloud ERROR - trying to replace failed instance')
         del(self.instances[next(i for (i, d) in enumerate(self.instances) if d["id"] == instance_id)])
         self.cleanup_instance(instance_id)
         self.instances.extend(self.create_instance(name, region, flavor, image, ssh_key))
+
+    def attach_volume(self, volume_id, instance_id):
+        self.log.debug('Attaching volume {} to instance {}'.format(volume_id, instance_id))
+        try:
+            r = self.ovh.post('/cloud/project/{}/volume/{}/attach'.format(self.project_id, volume_id),
+                              serviceName=self.project_id,
+                              instanceId=instance_id)
+            return True
+        except ovh.exceptions.APIError:
+            raise
+
+    def detach_volume(self, volume_id):
+        self.log.debug('Detaching volume {}'.format(volume_id))
+        try:
+            r = self.ovh.get('/cloud/project/{}/volume/{}'.format(self.project_id, volume_id))
+            for instance_id in r['attachedTo']:
+                self.log.debug('Detaching volume {} from instance {}'.format(volume_id, instance_id))
+                r = self.ovh.post('/cloud/project/{}/volume/{}/detach'.format(self.project_id, volume_id),
+                                  serviceName=self.project_id,
+                                  instanceId=instance_id)
+            return True
+        except ovh.exceptions.APIError:
+            raise
+
+    def attach_volumes(self):
+        self.log.info('Creating Docker volumes and attaching to instances')
+        region = self.args.region
+        size = self.args.docker_size
+        for instance in self.instances:
+            volume_id = self.create_volume(region, size)
+            self.volumes.append(volume_id)
+            self.attach_volume(volume_id, instance['id'])
+            self.wait_for_volume(volume_id, 'in-use')
+
+    def wait_for_volume(self, volume_id, wait_status='in-use'):
+        wait = True
+        while wait:
+            wait = False
+            r = self.ovh.get('/cloud/project/{}/volume/{}'.format(self.project_id, volume_id))
+            if r['status'] == wait_status:
+                self.log.debug('Volume {} is {}'.format(volume_id, r['status']))
+            elif r['status'] in ['attaching']:
+                self.log.debug('Volume {} is still {}'.format(volume_id, r['status']))
+                wait = True
+            else:
+                self.log.error('Volume {} has an unexpected status {}'.format(volume_id, r['status']))
+            time.sleep(1)
+
+    def system_create(self):
+        self.create_instances()
+        self.attach_volumes()
 
     def create_instances(self):
         name = self.args.name
