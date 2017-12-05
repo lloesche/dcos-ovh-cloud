@@ -19,7 +19,7 @@ consumer_key=4DxaEjBLbYm0nK3yjyFmpmscsjK4byja
 install Python 3 and required Python modules (`pip install -r requirements.txt`) then run `./dcos_ovhcloud_installer.py --help` and set appropriate options.
 
 
-##Example
+## Example
 ```
 $ ./dcos_ovhcloud_installer.py --project SomeOVHCloudProject \
                                --ssh-key "SomeOVHCloudKey" \
