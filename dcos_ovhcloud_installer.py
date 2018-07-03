@@ -77,7 +77,8 @@ class DCOSInstall:
             'process_timeout': 10000,
             'resolvers': ['8.8.8.8', '8.8.4.4'],
             'ssh_port': self.args.ssh_port,
-            'telemetry_enabled': 'false'
+            'telemetry_enabled': 'false',
+            'fault_domain_enabled': 'false'
         }
 
     def deploy(self):
