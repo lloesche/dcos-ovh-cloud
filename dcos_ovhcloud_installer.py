@@ -4,7 +4,7 @@ import time
 import requests
 import os
 import os.path
-import pwd
+import getpass
 import stat
 import yaml
 import sys
@@ -18,7 +18,7 @@ from multiprocessing.pool import ThreadPool
 from retrying import retry
 
 log_level = logging.DEBUG
-logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger('__main__').setLevel(log_level)
 logging.getLogger('DCOSInstall').setLevel(log_level)
 logging.getLogger('OVHInstances').setLevel(log_level)
@@ -223,7 +223,7 @@ class DCOSInstall:
             for pubagent in self.dcos_config['public_agent_list']:
                 self.log.info('\tssh://{}@{}'.format(self.args.ssh_user, pubagent))
 
-        self.log.warn('WARNING - All host firewalls are OPEN! Service ports are publicly available!')
+        self.log.warning('WARNING - All host firewalls are OPEN! Service ports are publicly available!')
 
     def write_config(self):
         instances = self.oi.instances
@@ -326,7 +326,7 @@ class OVHInstances:
         flavor_id = self.flavors[region][flavor]
         image_id = self.images[region][image]
         ssh_key_id = self.ssh_keys[region][ssh_key]
-        user_data = "user:" + pwd.getpwuid(os.getuid()).pw_name
+        user_data = "user:" + getpass.getuser()
         s = '' if num == 1 else 's'
         self.log.debug('Creating {} instance{} in region {} of type {} with image {}'.format(num, s, region, flavor, image))
         try:
